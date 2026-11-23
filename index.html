@@ -1,0 +1,267 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sertifikat Penghargaan</title>
+
+<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 25px 15px;
+  font-family: Arial, sans-serif;
+  background: #f1f5f6;
+  color: #333;
+}
+
+.container {
+  max-width: 430px;
+  margin: 35px auto;
+  padding: 28px 22px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 18px #00000012;
+  text-align: center;
+}
+
+.logo-title {
+  color: #087e91;
+  font-size: 25px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: 15px;
+  color: #777;
+  margin-bottom: 25px;
+}
+
+input {
+  width: 100%;
+  padding: 15px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 9px;
+  margin: 12px 0 18px;
+}
+
+button {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 9px;
+  background: #087e91;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+}
+
+#status {
+  font-size: 14px;
+  margin-top: 18px;
+}
+
+.footer {
+  margin-top: 25px;
+  font-size: 12px;
+  color: #999;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="logo-title">
+    SERTIFIKAT PENGHARGAAN
+  </div>
+
+  <div class="subtitle">
+    Bintang Qur'an × The Power of Hijrah
+  </div>
+
+  <p>
+    Silakan masukkan nama lengkap untuk
+    mendapatkan sertifikat penghargaan.
+  </p>
+
+  <input
+    type="text"
+    id="nama"
+    placeholder="Masukkan nama lengkap"
+    autocomplete="name"
+  >
+
+  <button id="tombol" onclick="buatSertifikat()">
+    UNDUH SERTIFIKAT
+  </button>
+
+  <div id="status"></div>
+
+  <div class="footer">
+    Bintang Qur'an × The Power of Hijrah
+  </div>
+
+</div>
+
+<script>
+async function buatSertifikat() {
+
+  const nama = document.getElementById("nama").value.trim();
+  const tombol = document.getElementById("tombol");
+  const status = document.getElementById("status");
+
+  if (!nama) {
+    alert("Silakan masukkan nama lengkap.");
+    return;
+  }
+
+  tombol.disabled = true;
+  status.textContent = "Sedang menyiapkan sertifikat...";
+
+  try {
+
+    const response = await fetch("sertifikat.jpg");
+
+    if (!response.ok) {
+      throw new Error("Desain sertifikat tidak ditemukan.");
+    }
+
+    const gambar = await response.arrayBuffer();
+
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
+
+    const pdf = await PDFDocument.create();
+
+    // Ukuran A4 vertikal
+    const pageWidth = 595.28;
+    const pageHeight = 841.89;
+
+    const page = pdf.addPage([pageWidth, pageHeight]);
+
+    const desain = await pdf.embedJpg(gambar);
+
+    // Mempertahankan proporsi gambar
+    const scale = Math.min(
+      pageWidth / desain.width,
+      pageHeight / desain.height
+    );
+
+    const imageWidth = desain.width * scale;
+    const imageHeight = desain.height * scale;
+
+    const imageX = (pageWidth - imageWidth) / 2;
+    const imageY = (pageHeight - imageHeight) / 2;
+
+    page.drawImage(desain, {
+      x: imageX,
+      y: imageY,
+      width: imageWidth,
+      height: imageHeight
+    });
+
+    const font = await pdf.embedFont(
+      StandardFonts.HelveticaBold
+    );
+
+    // Fungsi posisi berdasarkan gambar asli
+    function posisiX(x) {
+      return imageX + x * scale;
+    }
+
+    function posisiY(yDariAtas) {
+      return imageY + imageHeight - yDariAtas * scale;
+    }
+
+    // NAMA PESERTA
+    let ukuranNama = 34;
+
+    while (
+      font.widthOfTextAtSize(nama, ukuranNama) >
+      imageWidth * 0.82 &&
+      ukuranNama > 12
+    ) {
+      ukuranNama -= 1;
+    }
+
+    const namaWidth = font.widthOfTextAtSize(
+      nama,
+      ukuranNama
+    );
+
+    page.drawText(nama, {
+      x: (pageWidth - namaWidth) / 2,
+      y: posisiY(590),
+      size: ukuranNama,
+      font: font,
+      color: rgb(0.30, 0.30, 0.30)
+    });
+
+    // PERAN PESERTA
+    const peran = "Peserta";
+    const ukuranPeran = 22;
+
+    const peranWidth = font.widthOfTextAtSize(
+      peran,
+      ukuranPeran
+    );
+
+    page.drawText(peran, {
+      x: (pageWidth - peranWidth) / 2,
+      y: posisiY(810),
+      size: ukuranPeran,
+      font: font,
+      color: rgb(0.30, 0.30, 0.30)
+    });
+
+    // Unduh PDF
+    const hasil = await pdf.save();
+
+    const blob = new Blob(
+      [hasil],
+      { type: "application/pdf" }
+    );
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download =
+      "Sertifikat-" +
+      nama.replace(/[^a-z0-9]/gi, "-") +
+      ".pdf";
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+
+    status.textContent = "Sertifikat berhasil dibuat!";
+
+  } catch (error) {
+
+    status.textContent = "Gagal: " + error.message;
+
+  } finally {
+    tombol.disabled = false;
+  }
+}
+</script>
+
+</body>
+</html>
